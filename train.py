@@ -114,7 +114,22 @@ class CustomDataset(Dataset):
         features = np.load(os.path.join(self.features_dir, feature_file))
         labels = np.load(os.path.join(self.labels_dir, label_file))
         return torch.from_numpy(features), torch.from_numpy(labels)
+    
+class CustomDataset_single(Dataset):
+    def __init__(self, features_dir):
 
+        self.features = np.load(features_dir)['features']
+        self.labels = np.load(features_dir)['labels']
+
+    def __len__(self):
+        assert len(self.features) == len(self.labels), \
+            "Number of feature files and label files should be same"
+        return len(self.features)
+
+    def __getitem__(self, idx):
+        feature = self.features[idx]
+        label = self.labels[idx]
+        return torch.from_numpy(feature), torch.from_numpy(label)
 
 #################################################################################
 #                                  Training Loop                                #
@@ -146,7 +161,8 @@ def main(args):
     latent_size = args.image_size // 8
     model = DiT_models[args.model](
         input_size=latent_size,
-        num_classes=args.num_classes
+        num_classes=args.num_classes,
+        use_grad_ckpt=(not args.disable_grad_ckpt)
     )
     # Note that parameter initialization is done within the DiT constructor
     model = model.to(device)
@@ -260,5 +276,6 @@ if __name__ == "__main__":
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
+    parser.add_argument("--disable-grad-ckpt", action='store_false')
     args = parser.parse_args()
     main(args)

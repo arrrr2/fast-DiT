@@ -158,6 +158,7 @@ class DiT(nn.Module):
         class_dropout_prob=0.1,
         num_classes=1000,
         learn_sigma=True,
+        use_grad_ckpt=True
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -165,6 +166,7 @@ class DiT(nn.Module):
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
         self.num_heads = num_heads
+        self.use_grad_ckpt = use_grad_ckpt
 
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
@@ -249,8 +251,8 @@ class DiT(nn.Module):
         c = t + y                                # (N, D)
         # here: checkpoint
         for block in self.blocks:
-            # x = torch.utils.checkpoint.checkpoint(self.ckpt_wrapper(block), x, c)       # (N, T, D)
-            x = block(x, c)
+            if self.use_grad_ckpt: x = torch.utils.checkpoint.checkpoint(self.ckpt_wrapper(block), x, c)       # (N, T, D)
+            else: x = block(x, c)
         x = self.final_layer(x, c)                # (N, T, patch_size ** 2 * out_channels)
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
