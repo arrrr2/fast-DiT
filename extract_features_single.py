@@ -161,7 +161,7 @@ def main(args):
         labels[train_steps] = y
         train_steps += 1
         # print(train_steps)
-    np.savez_compressed(args.save_path, features=feats, labels=labels)
+    np.savez_compressed(args.features_path, features=feats, labels=labels)
 
 if __name__ == "__main__":
     # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
