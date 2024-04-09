@@ -115,8 +115,7 @@ def main(args):
     # Setup a feature folder:
     if rank == 0:
         os.makedirs(args.features_path, exist_ok=True)
-        os.makedirs(os.path.join(args.features_path, 'imagenet256_features'), exist_ok=True)
-        os.makedirs(os.path.join(args.features_path, 'imagenet256_labels'), exist_ok=True)
+
 
     # Create model:
     assert args.image_size % 8 == 0, "Image size must be divisible by 8 (for the VAE encoder)."
@@ -161,7 +160,7 @@ def main(args):
         labels[train_steps] = y
         train_steps += 1
         # print(train_steps)
-    np.savez_compressed(args.features_path, features=feats, labels=labels)
+    np.savez_compressed(os.path.join(args.features_path, "features.npz"), features=feats, labels=labels)
 
 if __name__ == "__main__":
     # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
