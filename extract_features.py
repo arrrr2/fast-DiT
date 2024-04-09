@@ -11,9 +11,7 @@ import torch
 # the first flag below was False when we tested this script but True makes A100 training a lot faster:
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Sampler
 from torch.utils.data.distributed import DistributedSampler
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
@@ -26,7 +24,7 @@ from time import time
 import argparse
 import logging
 import os
-
+from tqdm import tqdm
 from models import DiT_models
 from diffusion import create_diffusion
 from diffusers.models import AutoencoderKL
@@ -57,11 +55,6 @@ def requires_grad(model, flag=True):
         p.requires_grad = flag
 
 
-def cleanup():
-    """
-    End DDP training.
-    """
-    dist.destroy_process_group()
 
 
 def create_logger(logging_dir):
@@ -114,14 +107,10 @@ def main(args):
     assert torch.cuda.is_available(), "Training currently requires at least one GPU."
 
     # Setup DDP:
-    dist.init_process_group("nccl")
-    assert args.global_batch_size % dist.get_world_size() == 0, f"Batch size must be divisible by world size."
-    rank = dist.get_rank()
-    device = rank % torch.cuda.device_count()
-    seed = args.global_seed * dist.get_world_size() + rank
+    device = "cuda"
+    rank = 0
+    seed = 0
     torch.manual_seed(seed)
-    torch.cuda.set_device(device)
-    print(f"Starting rank={rank}, seed={seed}, world_size={dist.get_world_size()}.")
 
     # Setup a feature folder:
     if rank == 0:
@@ -137,30 +126,23 @@ def main(args):
     # Setup data:
     transform = transforms.Compose([
         transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
-        transforms.RandomHorizontalFlip(),
+        transforms.RandomHorizontalFlip(p=1),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
     ])
     dataset = ImageFolder(args.data_path, transform=transform)
-    sampler = DistributedSampler(
-        dataset,
-        num_replicas=dist.get_world_size(),
-        rank=rank,
-        shuffle=False,
-        seed=args.global_seed
-    )
+
     loader = DataLoader(
         dataset,
         batch_size = 1,
         shuffle=False,
-        sampler=sampler,
         num_workers=args.num_workers,
         pin_memory=True,
         drop_last=True
     )
 
     train_steps = 0
-    for x, y in loader:
+    for x, y in tqdm(loader):
         x = x.to(device)
         y = y.to(device)
         with torch.no_grad():
@@ -174,7 +156,7 @@ def main(args):
         np.save(f'{args.features_path}/imagenet256_labels/{train_steps}.npy', y)
             
         train_steps += 1
-        print(train_steps)
+        # print(train_steps)
 
 if __name__ == "__main__":
     # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
@@ -189,7 +171,7 @@ if __name__ == "__main__":
     parser.add_argument("--global-batch-size", type=int, default=256)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
-    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--num-workers", type=int, default=6)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
     args = parser.parse_args()
