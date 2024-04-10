@@ -129,7 +129,7 @@ class CustomDataset_single(Dataset):
     def __getitem__(self, idx):
         feature = self.features[idx]
         label = self.labels[idx]
-        return torch.from_numpy(feature), torch.Tensor([label])
+        return torch.from_numpy(feature), torch.from_numpy(np.array([label]))
 
 #################################################################################
 #                                  Training Loop                                #
