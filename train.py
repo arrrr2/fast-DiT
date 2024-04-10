@@ -113,7 +113,7 @@ class CustomDataset(Dataset):
 
         features = np.load(os.path.join(self.features_dir, feature_file))
         labels = np.load(os.path.join(self.labels_dir, label_file))
-        return torch.from_numpy(features), torch.from_numpy(labels)
+        return torch.from_numpy(features), torch.Tensor(labels)
     
 class CustomDataset_single(Dataset):
     def __init__(self, features_dir):
@@ -129,7 +129,7 @@ class CustomDataset_single(Dataset):
     def __getitem__(self, idx):
         feature = self.features[idx]
         label = self.labels[idx]
-        return torch.from_numpy(feature), torch.from_numpy(label)
+        return torch.from_numpy(feature), torch.Tensor([label])
 
 #################################################################################
 #                                  Training Loop                                #
@@ -187,7 +187,8 @@ def main(args):
         shuffle=True,
         num_workers=args.num_workers,
         pin_memory=True,
-        drop_last=True
+        drop_last=True,
+        persistent_workers=True
     )
     if accelerator.is_main_process:
         logger.info(f"Dataset contains {len(dataset):,} images ({args.feature_path})")
@@ -274,7 +275,7 @@ if __name__ == "__main__":
     parser.add_argument("--global-batch-size", type=int, default=256)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
-    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--num-workers", type=int, default=8)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
     parser.add_argument("--disable-grad-ckpt", action='store_false')
