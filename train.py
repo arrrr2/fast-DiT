@@ -180,7 +180,7 @@ def main(args):
     features_dir = f"{args.feature_path}/imagenet256_features"
     labels_dir = f"{args.feature_path}/imagenet256_labels"
     features_file_dir = args.feature_path
-    dataset = CustomDataset_single(features_file_dir, labels_dir)
+    dataset = CustomDataset_single(features_file_dir)
     loader = DataLoader(
         dataset,
         batch_size=int(args.global_batch_size // accelerator.num_processes),
