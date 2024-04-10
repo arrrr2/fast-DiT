@@ -162,7 +162,7 @@ def main(args):
     model = DiT_models[args.model](
         input_size=latent_size,
         num_classes=args.num_classes,
-        use_grad_ckpt=(not args.disable_grad_ckpt)
+        use_grad_ckpt=(args.disable_grad_ckpt)
     )
     # Note that parameter initialization is done within the DiT constructor
     model = model.to(device)
