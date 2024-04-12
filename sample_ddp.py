@@ -77,8 +77,9 @@ def main(args):
     model.eval()  # important!
     diffusion = create_diffusion(str(args.num_sampling_steps))
     vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-{args.vae}").to(device)
-    assert args.cfg_scale >= 1.0, "In almost all cases, cfg_scale be >= 1.0"
-    using_cfg = args.cfg_scale > 1.0
+    # assert args.cfg_scale >= 1.0, "In almost all cases, cfg_scale be >= 1.0"
+    # using_cfg = args.cfg_scale > 1.0
+    using_cfg = True
 
     # Create folder to save samples:
     model_string_name = args.model.replace("/", "-")
