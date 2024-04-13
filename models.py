@@ -273,6 +273,15 @@ class DiT(nn.Module):
         cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = torch.cat([half_eps, half_eps], dim=0)
+        
+        # print(x.shape, half.shape, combined.shape,
+        # model_out.shape, eps.shape, rest.shape,
+        # cond_eps.shape, uncond_eps.shape, half_eps.shape,
+        # eps.shape, (torch.cat([eps, rest], dim=1).shape))
+        # torch.Size([32, 4, 32, 32]) torch.Size([16, 4, 32, 32]) torch.Size([32, 4, 32, 32])
+        # torch.Size([32, 8, 32, 32]) torch.Size([32, 3, 32, 32]) torch.Size([32, 5, 32, 32])
+        # torch.Size([16, 3, 32, 32]) torch.Size([16, 3, 32, 32]) torch.Size([16, 3, 32, 32])
+        # torch.Size([32, 3, 32, 32]) torch.Size([32, 8, 32, 32])
         return torch.cat([eps, rest], dim=1)
 
 

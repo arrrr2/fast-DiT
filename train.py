@@ -149,6 +149,7 @@ def main(args):
     if accelerator.is_main_process:
         os.makedirs(args.results_dir, exist_ok=True)  # Make results folder (holds all experiment subfolders)
         experiment_index = len(glob(f"{args.results_dir}/*"))
+        if args.resume_from != "": experiment_index -= 1
         model_string_name = args.model.replace("/", "-")  # e.g., DiT-XL/2 --> DiT-XL-2 (for naming folders)
         experiment_dir = f"{args.results_dir}/{experiment_index:03d}-{model_string_name}"  # Create an experiment folder
         checkpoint_dir = f"{experiment_dir}/checkpoints"  # Stores saved model checkpoints
@@ -197,17 +198,30 @@ def main(args):
     update_ema(ema, model, decay=0)  # Ensure EMA is initialized with synced weights
     model.train()  # important! This enables embedding dropout for classifier-free guidance
     ema.eval()  # EMA model should always be in eval mode
-    model, opt, loader = accelerator.prepare(model, opt, loader)
+    model, opt, loader, ema = accelerator.prepare(model, opt, loader, ema)
 
     # Variables for monitoring/logging purposes:
     train_steps = 0
     log_steps = 0
     running_loss = 0
     start_time = time()
+    curr_epoch = 0
+    
+    if resume_dir := args.resume_from != "":
+        resume_info = torch.load(resume_dir)
+        train_steps = resume_info['train_steps']
+        curr_epoch = resume_info['epochs']
+        with accelerator.main_process_first():
+            model.load_state_dict(resume_info["model"])
+            ema.load_state_dict(resume_info["ema"])
+            opt.load_state_dict(resume_info["opt"])
     
     if accelerator.is_main_process:
         logger.info(f"Training for {args.epochs} epochs...")
+        
     for epoch in range(args.epochs):
+        if epoch == 0 and train_steps != 0:
+            epoch = curr_epoch + 1
         if accelerator.is_main_process:
             logger.info(f"Beginning epoch {epoch}...")
         for x, y in loader:
@@ -242,7 +256,7 @@ def main(args):
                 running_loss = 0
                 log_steps = 0
                 start_time = time()
-
+            accelerator.wait_for_everyone()
             # Save DiT checkpoint:
             if train_steps % args.ckpt_every == 0 and train_steps > 0:
                 if accelerator.is_main_process:
@@ -250,7 +264,9 @@ def main(args):
                         "model": model.module.state_dict(),
                         "ema": ema.state_dict(),
                         "opt": opt.state_dict(),
-                        "args": args
+                        "args": args,
+                        "train_steps": train_steps,
+                        "epochs": epoch
                     }
                     checkpoint_path = f"{checkpoint_dir}/{train_steps:07d}.pt"
                     torch.save(checkpoint, checkpoint_path)
@@ -271,7 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
     parser.add_argument("--num-classes", type=int, default=1000)
-    parser.add_argument("--epochs", type=int, default=1400)
+    parser.add_argument("--epochs", type=int, default=85)
     parser.add_argument("--global-batch-size", type=int, default=256)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
@@ -279,5 +295,6 @@ if __name__ == "__main__":
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
     parser.add_argument("--disable-grad-ckpt", action='store_false')
+    parser.add_argument("--resume-from", type=str, default="")
     args = parser.parse_args()
     main(args)
