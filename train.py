@@ -28,6 +28,7 @@ import argparse
 import logging
 import os
 from accelerate import Accelerator
+from datasets import SingleFileDataset
 
 from models import DiT_models
 from diffusion import create_diffusion
@@ -74,63 +75,6 @@ def create_logger(logging_dir):
     return logger
 
 
-def center_crop_arr(pil_image, image_size):
-    """
-    Center cropping implementation from ADM.
-    https://github.com/openai/guided-diffusion/blob/8fb3ad9197f16bbc40620447b2742e13458d2831/guided_diffusion/image_datasets.py#L126
-    """
-    while min(*pil_image.size) >= 2 * image_size:
-        pil_image = pil_image.resize(
-            tuple(x // 2 for x in pil_image.size), resample=Image.BOX
-        )
-
-    scale = image_size / min(*pil_image.size)
-    pil_image = pil_image.resize(
-        tuple(round(x * scale) for x in pil_image.size), resample=Image.BICUBIC
-    )
-
-    arr = np.array(pil_image)
-    crop_y = (arr.shape[0] - image_size) // 2
-    crop_x = (arr.shape[1] - image_size) // 2
-    return Image.fromarray(arr[crop_y: crop_y + image_size, crop_x: crop_x + image_size])
-
-
-class CustomDataset(Dataset):
-    def __init__(self, features_dir, labels_dir):
-        self.features_dir = features_dir
-        self.labels_dir = labels_dir
-
-        self.features_files = sorted(os.listdir(features_dir))
-        self.labels_files = sorted(os.listdir(labels_dir))
-
-    def __len__(self):
-        assert len(self.features_files) == len(self.labels_files), \
-            "Number of feature files and label files should be same"
-        return len(self.features_files)
-
-    def __getitem__(self, idx):
-        feature_file = self.features_files[idx]
-        label_file = self.labels_files[idx]
-
-        features = np.load(os.path.join(self.features_dir, feature_file))
-        labels = np.load(os.path.join(self.labels_dir, label_file))
-        return torch.from_numpy(features), torch.Tensor(labels)
-    
-class CustomDataset_single(Dataset):
-    def __init__(self, features_dir):
-
-        self.features = np.load(features_dir)['features']
-        self.labels = np.load(features_dir)['labels']
-
-    def __len__(self):
-        assert len(self.features) == len(self.labels), \
-            "Number of feature files and label files should be same"
-        return len(self.features)
-
-    def __getitem__(self, idx):
-        feature = self.features[idx]
-        label = self.labels[idx]
-        return torch.from_numpy(feature), torch.from_numpy(np.array([label]))
 
 #################################################################################
 #                                  Training Loop                                #
@@ -182,7 +126,7 @@ def main(args):
     features_dir = f"{args.feature_path}/imagenet256_features"
     labels_dir = f"{args.feature_path}/imagenet256_labels"
     features_file_dir = args.feature_path+"/features.npz"
-    dataset = CustomDataset_single(features_file_dir)
+    dataset = SingleFileDataset(features_file_dir)
     loader = DataLoader(
         dataset,
         batch_size=int(args.global_batch_size // accelerator.num_processes),
