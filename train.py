@@ -103,6 +103,7 @@ def main(args):
         logger.info(f"Experiment directory created at {experiment_dir}")
 
     # Create model:
+    args.image_size = 256
     assert args.image_size % 8 == 0, "Image size must be divisible by 8 (for the VAE encoder)."
     latent_size = args.image_size // 8
     model = DiT_models[args.model](
