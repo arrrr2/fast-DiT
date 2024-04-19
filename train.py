@@ -28,7 +28,7 @@ import argparse
 import logging
 import os
 from accelerate import Accelerator
-from datasets import SingleFileDataset
+from datasets import SingleFileDataset, SeparateFilesDataset, RedisDataset
 
 from models import DiT_models
 from diffusion import create_diffusion
@@ -124,10 +124,16 @@ def main(args):
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
 
     # Setup data:
-    features_dir = f"{args.feature_path}/imagenet256_features"
-    labels_dir = f"{args.feature_path}/imagenet256_labels"
     features_file_dir = args.feature_path
-    dataset = SingleFileDataset(features_file_dir)
+    # dataset mode: SingleFile, Separatefiles, Redis
+    if args.dataset_mode == "single":
+        dataset = SingleFileDataset(features_file_dir)
+    elif args.dataset_mode == "separate":
+        dataset = SeparateFilesDataset(features_file_dir)
+    elif args.dataset_mode == "redis":
+        dataset = RedisDataset(host="localhost", port=6379, db=0, key="dit_features")
+    
+    
     loader = DataLoader(
         dataset,
         batch_size=int(args.global_batch_size // accelerator.num_processes),
@@ -231,6 +237,7 @@ if __name__ == "__main__":
     parser.add_argument("--feature-path", type=str, default="features")
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
+    parser.add_argument("--dataset-mode", type=str, choices=["single", "separate", "redis"], default="single")
     parser.add_argument("--num-classes", type=int, default=1000)
     parser.add_argument("--epochs", type=int, default=85)
     parser.add_argument("--global-batch-size", type=int, default=256)

@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 import io
+import pickle
 
 
 # now, files are saved with torch.save()
@@ -46,7 +47,7 @@ class RedisDataset(Dataset):
     def __len__(self):
         return self.len
     def __getitem__(self, idx):
-        return torch.load(io.BytesIO(self.r.lindex(self.key, idx)))
+        return pickle.loads(self.r.lindex(self.key, idx))
     
 
 
