@@ -126,7 +126,7 @@ def main(args):
     # Setup data:
     features_dir = f"{args.feature_path}/imagenet256_features"
     labels_dir = f"{args.feature_path}/imagenet256_labels"
-    features_file_dir = args.feature_path+"/features.npz"
+    features_file_dir = args.feature_path
     dataset = SingleFileDataset(features_file_dir)
     loader = DataLoader(
         dataset,
