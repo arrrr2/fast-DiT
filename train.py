@@ -174,7 +174,7 @@ def main(args):
             x = x.to(device)
             y = y.to(device)
             x = x.squeeze(dim=1)
-            y = y.squeeze(dim=1)
+
             t = torch.randint(0, diffusion.num_timesteps, (x.shape[0],), device=device)
             model_kwargs = dict(y=y)
             loss_dict = diffusion.training_losses(model, x, t, model_kwargs)
