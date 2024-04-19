@@ -27,7 +27,7 @@ class SeparateFilesDataset(Dataset):
 class SingleFileDataset(Dataset):
     def __init__(self, file_path):
         self.file_path = file_path
-        self.data = torch.load(file_path, allow_pickle=False)
+        self.data = torch.load(file_path)
         features = self.data['features']
         labels = self.data['labels']
         self.len = len(features)
