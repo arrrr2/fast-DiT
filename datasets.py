@@ -42,12 +42,11 @@ class RedisDataset(Dataset):
     def __init__(self, host, port, db, key):
         import redis
         self.r = redis.Redis(host=host, port=port, db=db)
-        self.key = key
-        self.len = self.r.llen(key)
+        self.len = self.r.dbsize()
     def __len__(self):
         return self.len
-    def __getitem__(self, idx):
-        return pickle.loads(self.r.lindex(self.key, idx))
+    def __getitem__(self, idx:int):
+        return torch.load(io.BytesIO(self.r.get(idx.to_bytes(3))))
     
 
 
