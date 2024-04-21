@@ -123,6 +123,8 @@ def main(args):
     # Setup optimizer (we used default Adam betas=(0.9, 0.999) and a constant learning rate of 1e-4 in our paper):
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
 
+    print("models set")
+    
     # Setup data:
     features_file_dir = args.feature_path
     # dataset mode: SingleFile, Separatefiles, Redis
@@ -213,7 +215,7 @@ def main(args):
             if train_steps % args.ckpt_every == 0 and train_steps > 0:
                 if accelerator.is_main_process:
                     checkpoint = {
-                        "model": model.module.state_dict(),
+                        "model": model.module.state_dict() if hasattr(model, 'module') else model.state_dict(),
                         "ema": ema.state_dict(),
                         "opt": opt.state_dict(),
                         "args": args,
@@ -249,4 +251,5 @@ if __name__ == "__main__":
     parser.add_argument("--disable-grad-ckpt", action='store_false')
     parser.add_argument("--resume-from", type=str, default="")
     args = parser.parse_args()
+    print("args parsed")
     main(args)
