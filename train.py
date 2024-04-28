@@ -212,7 +212,7 @@ def main(args):
                 start_time = time()
             accelerator.wait_for_everyone()
             # Save DiT checkpoint:
-            if (train_steps % args.ckpt_every == 0 and train_steps > 0) or (args.ckpt_every_epoch > 0 and train_steps % args.ckpt_every_epoch == 0):
+            if (train_steps % args.ckpt_every == 0 and train_steps > 0) or (args.save_epoch > 0 and (epoch + 1) % args.save_epoch == 0):
                 if accelerator.is_main_process:
                     checkpoint = {
                         "model": model.module.state_dict() if hasattr(model, 'module') else model.state_dict(),
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt-every", type=int, default=400000)
     parser.add_argument("--disable-grad-ckpt", action='store_false')
     parser.add_argument("--resume-from", type=str, default="")
-    parser.add_argument("--ckpt-every-epoch", type=int, default=0)
+    parser.add_argument("--save-epoch", type=int, default=0)
     args = parser.parse_args()
     print("args parsed")
     main(args)
