@@ -173,6 +173,20 @@ def main(args):
     if accelerator.is_main_process:
         logger.info(f"Training for {args.epochs} epochs...")
         
+    def save():
+        if accelerator.is_main_process:
+            checkpoint = {
+                "model": model.module.state_dict() if hasattr(model, 'module') else model.state_dict(),
+                "ema": ema.state_dict(),
+                "opt": opt.state_dict(),
+                "args": args,
+                "train_steps": train_steps,
+                "epochs": epoch
+            }
+            checkpoint_path = f"{checkpoint_dir}/{train_steps:07d}.pt"
+            torch.save(checkpoint, checkpoint_path)
+            logger.info(f"Saved checkpoint to {checkpoint_path}")
+        
     for epoch in range(args.epochs):
         if epoch == 0 and train_steps != 0:
             epoch = curr_epoch + 1
@@ -212,19 +226,9 @@ def main(args):
                 start_time = time()
             accelerator.wait_for_everyone()
             # Save DiT checkpoint:
-            if (train_steps % args.ckpt_every == 0 and train_steps > 0) or (args.save_epoch > 0 and (epoch + 1) % args.save_epoch == 0):
-                if accelerator.is_main_process:
-                    checkpoint = {
-                        "model": model.module.state_dict() if hasattr(model, 'module') else model.state_dict(),
-                        "ema": ema.state_dict(),
-                        "opt": opt.state_dict(),
-                        "args": args,
-                        "train_steps": train_steps,
-                        "epochs": epoch
-                    }
-                    checkpoint_path = f"{checkpoint_dir}/{train_steps:07d}.pt"
-                    torch.save(checkpoint, checkpoint_path)
-                    logger.info(f"Saved checkpoint to {checkpoint_path}")
+            if (train_steps % args.ckpt_every == 0 and train_steps > 0): save() 
+        if (args.save_epoch > 0 and (epoch + 1) % args.save_epoch == 0): save()
+
 
     model.eval()  # important! This disables randomized embedding dropout
     # do any sampling/FID calculation/etc. with ema (or model) in eval mode ...
